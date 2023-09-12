@@ -31,21 +31,25 @@ public:
             : m_config(model_config),
               m_device(device),
               m_exclusive_gpu_access(exclusive_gpu_access) {
+        spdlog::info(">[GAGAN:CudaCRFModel] begin");
         m_decoder_options = DecoderOptions();
         m_decoder_options.q_shift = model_config.qbias;
         m_decoder_options.q_scale = model_config.qscale;
         m_decoder = std::make_unique<GPUDecoder>();
+        spdlog::info(">[GAGAN:CudaCRFModel] GPUDecoder done");
         m_num_input_features = model_config.num_features;
         // adjust chunk size to be a multiple of the stride
         m_out_chunk_size = chunk_size / model_config.stride;
         m_in_chunk_size = m_out_chunk_size * model_config.stride;
 
         m_options = torch::TensorOptions().dtype(GPUDecoder::dtype).device(device);
-        assert(m_options.device().is_cuda());
+        // spdlog::info(">[GAGAN:CudaCRFModel] GPUDecoder m_options{}",m_options);
+        spdlog::info(">[GAGAN:CudaCRFModel] GPUDecoder TensorOptions");
+        // assert(m_options.device().is_cuda());
 
         torch::InferenceMode guard;
         m_module = load_crf_model(model_config, m_options);
-
+        spdlog::info(">[GAGAN:CudaCRFModel] m_module");
         // Batch size will be rounded up to a multiple of batch_size_granularity, regardless of
         // user choice. This makes sure batch size is compatible with GPU kernels.
         if (batch_size == 0) {

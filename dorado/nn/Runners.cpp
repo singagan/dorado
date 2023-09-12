@@ -64,7 +64,10 @@ std::pair<std::vector<dorado::Runner>, size_t> create_basecall_runners(
 #else   // ifdef __APPLE__
     else {
         auto devices = dorado::utils::parse_cuda_device_string(device);
-        num_devices = devices.size();
+        // spdlog::info(">[GAGAN:Runners] devices {}",devices);
+        devices.push_back("cuda:0");
+        num_devices = 1;
+        spdlog::info(">[GAGAN:Runners] num_devices {}",num_devices);
         if (num_devices == 0) {
             throw std::runtime_error("CUDA device requested but no devices found.");
         }
@@ -72,16 +75,17 @@ std::pair<std::vector<dorado::Runner>, size_t> create_basecall_runners(
         cxxpool::thread_pool pool{num_devices};
         std::vector<std::shared_ptr<CudaCaller>> callers;
         std::vector<std::future<std::shared_ptr<dorado::CudaCaller>>> futures;
-
+        spdlog::info(">[GAGAN:Runners] CudaCaller made");
         for (auto device_string : devices) {
             futures.push_back(pool.push(dorado::create_cuda_caller, model_config, chunk_size,
                                         batch_size, device_string, memory_fraction, guard_gpus));
         }
-
+        
+        spdlog::info(">[GAGAN:Runners] caller get");
         for (auto& caller : futures) {
             callers.push_back(caller.get());
         }
-
+        spdlog::info(">[GAGAN:Runners] make_shared CudaModelRunner ");
         for (size_t j = 0; j < num_devices; j++) {
             for (size_t i = 0; i < num_gpu_runners; i++) {
                 runners.push_back(std::make_shared<dorado::CudaModelRunner>(callers[j]));
@@ -91,6 +95,7 @@ std::pair<std::vector<dorado::Runner>, size_t> create_basecall_runners(
                               runners.back()->batch_size());
             }
         }
+        spdlog::info(">[GAGAN:Runners] Done with runner");
     }
 #endif  // __APPLE__
 #endif  // DORADO_GPU_BUILD

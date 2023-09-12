@@ -188,14 +188,23 @@ ModuleHolder<AnyModule> populate_model(Model &&model,
                                        const torch::TensorOptions &options,
                                        bool decomposition,
                                        bool linear_layer_bias) {
+    spdlog::info(">[GAGAN:CRFModel] populate_model begin");
     auto state_dict = dorado::load_crf_model_weights(path, decomposition, linear_layer_bias);
     model->load_state_dict(state_dict);
+    spdlog::info(">[GAGAN:CRFModel] populate_model load_state_dict");
     model->to(options.dtype_opt().value().toScalarType());
-    model->to(options.device_opt().value());
-    model->eval();
+    // spdlog::info(">[GAGAN:CRFModel] populate_model options.device_opt().value(){}",options.device_opt());
+    // spdlog::info(">[GAGAN:CRFModel] populate_model options.device_opt().value(){}",options.device_opt().value());
 
+    // model->to(torch::kCUDA);
+    // model->to(true);
+    model->to(options.device_opt().value());
+    spdlog::info(">[GAGAN:CRFModel] populate_model model done");
+    model->eval();
+    spdlog::info(">[GAGAN:CRFModel] populate_model  model->eval();");
     auto module = AnyModule(model);
     auto holder = ModuleHolder<AnyModule>(module);
+    spdlog::info(">[GAGAN:CRFModel] populate_model  end");
     return holder;
 }
 }  // namespace
@@ -792,6 +801,8 @@ TORCH_MODULE(Clamp);
 
 struct CRFModelImpl : Module {
     explicit CRFModelImpl(const CRFModelConfig &config) {
+
+        spdlog::info(">[GAGAN:CRFModel] CRFModelImpl begin");
         constexpr float conv_max_value = 3.5f;
         conv1 = register_module("conv1", Convolution(config.num_features, config.conv, 5, 1,
                                                      config.clamp, conv_max_value, false));
@@ -818,6 +829,7 @@ struct CRFModelImpl : Module {
                                       LinearCRF(config.insize, config.outsize, true, true));
             encoder = Sequential(conv1, conv2, conv3, rnns, linear1);
         }
+        spdlog::info(">[GAGAN:CRFModel] CRFModelImpl end");
     }
 
     void load_state_dict(const std::vector<torch::Tensor> &weights) {
@@ -900,6 +912,7 @@ TORCH_MODULE(CRFModel);
 std::vector<torch::Tensor> load_crf_model_weights(const std::filesystem::path &dir,
                                                   bool decomposition,
                                                   bool linear_layer_bias) {
+    spdlog::info(">[GAGAN:CRFModel] load_crf_model_weights begin");
     auto tensors = std::vector<std::string>{
 
             "0.conv.weight.tensor",      "0.conv.bias.tensor",
@@ -932,13 +945,15 @@ std::vector<torch::Tensor> load_crf_model_weights(const std::filesystem::path &d
     if (decomposition) {
         tensors.push_back("10.linear.weight.tensor");
     }
-
+    spdlog::info(">[GAGAN:CRFModel] load_crf_model_weights end");
     return utils::load_tensors(dir, tensors);
 }
 
 ModuleHolder<AnyModule> load_crf_model(const CRFModelConfig &model_config,
                                        const torch::TensorOptions &options) {
+    spdlog::info(">[GAGAN:CRFModel] load_crf_model begin");
     auto model = nn::CRFModel(model_config);
+    spdlog::info(">[GAGAN:CRFModel] got the model");
     return populate_model(model, model_config.model_path, options,
                           model_config.out_features.has_value(), model_config.bias);
 }
